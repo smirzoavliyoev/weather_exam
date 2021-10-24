@@ -1,0 +1,32 @@
+# syntax=docker/dockerfile:1
+
+##
+## Build
+##
+FROM golang:1.16-buster AS build
+
+WORKDIR /app
+
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
+
+COPY . .
+
+RUN cd api_service/cmd && CGO_ENABLED=0 GOOS=linux go build -o api_service
+
+##
+## Deploy
+##
+FROM alpine:latest
+
+WORKDIR /
+
+RUN apk add --no-cache bash
+
+COPY --from=build /app/api_service/cmd/api_service .
+COPY --from=build /app/api_service/cmd/.config.env .
+
+EXPOSE 8080
+
+ENTRYPOINT  [ "./api_service" ]

@@ -1,0 +1,30 @@
+# syntax=docker/dockerfile:1
+
+##
+## Build
+##
+FROM golang:1.16-buster AS build
+
+WORKDIR /app
+
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
+
+COPY . .
+
+RUN cd worker_service && CGO_ENABLED=0 GOOS=linux go build -o worker_service
+
+##
+## Deploy
+##
+FROM alpine:latest
+
+WORKDIR /
+
+RUN apk add --no-cache bash
+
+COPY --from=build /app/worker_service/worker_service .
+COPY --from=build /app/worker_service/.config.env .
+
+ENTRYPOINT  [ "./worker_service" ]
